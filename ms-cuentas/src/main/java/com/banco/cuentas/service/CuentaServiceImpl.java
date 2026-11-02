@@ -1,21 +1,28 @@
 package com.banco.cuentas.service;
 
+import com.banco.cuentas.client.ClienteClient;
 import com.banco.cuentas.entity.Cuenta;
 import com.banco.cuentas.exception.RecursoDuplicadoException;
 import com.banco.cuentas.exception.RecursoNoEncontradoException;
+import com.banco.cuentas.exception.ServicioNoDisponibleException;
 import com.banco.cuentas.repository.CuentaRepository;
+import feign.FeignException;
 import org.springframework.stereotype.Service;
 
+import java.rmi.server.ServerCloneException;
 import java.util.List;
 
 @Service
-public class CuentaServiceImpl implements CuentaService{
+public class CuentaServiceImpl implements CuentaService {
 
     private final CuentaRepository cuentaRepository;
+    private final ClienteClient clienteClient;
 
-    public CuentaServiceImpl (CuentaRepository cuentaRepository) {
+    public CuentaServiceImpl(CuentaRepository cuentaRepository, ClienteClient clienteClient) {
         this.cuentaRepository = cuentaRepository;
+        this.clienteClient = clienteClient;
     }
+
 
     @Override
     public List<Cuenta> listarTodas() {
@@ -26,7 +33,7 @@ public class CuentaServiceImpl implements CuentaService{
     public Cuenta obtenerPorId(Long id) {
         return cuentaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                   "Cuenta con id " + id + " no encontrada"
+                        "Cuenta con id " + id + " no encontrada"
                 ));
     }
 
@@ -37,6 +44,13 @@ public class CuentaServiceImpl implements CuentaService{
 
     @Override
     public Cuenta crearCuenta(Cuenta cuenta) {
+        try{
+            clienteClient.obtenerPorId(cuenta.getClienteId());
+        } catch (FeignException.NotFound e) {
+            throw new RecursoNoEncontradoException("Cliente con id "+ cuenta.getClienteId()+" no existe.");
+        } catch (FeignException e) {
+            throw new ServicioNoDisponibleException("El servicio de clientes no está disponible.");
+        }
         boolean cuentaExiste = cuentaRepository.existsByNumeroCuenta(
                 cuenta.getNumeroCuenta());
         if (cuentaExiste) {
@@ -44,7 +58,7 @@ public class CuentaServiceImpl implements CuentaService{
                     "Ya existe una cuenta con el número: " + cuenta.getNumeroCuenta()
             );
         }
-        return  cuentaRepository.save(cuenta);
+        return cuentaRepository.save(cuenta);
     }
 
     @Override

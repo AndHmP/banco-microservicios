@@ -24,7 +24,7 @@ public record CuentaRequest(
         Long clienteId
 ) {
 
-    public Cuenta toEntity(){
+    public Cuenta toEntity() {
         return new Cuenta(null, numeroCuenta, tipo, saldo, clienteId);
     }
 }

@@ -7,6 +7,7 @@ import com.banco.clienteapi.repository.ClienteRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ClienteServiceImpl implements ClienteService {
@@ -26,6 +27,13 @@ public class ClienteServiceImpl implements ClienteService {
     public Cliente obtenerPorId(Long id) {
         return clienteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Cliente con id " + id + " no encontrado"));
+    }
+
+    @Override
+    public Cliente obtenerPorDni(String dni) {
+        return clienteRepository.findByDni(dni).orElseThrow(
+                () -> new RecursoNoEncontradoException("No hay ningún cliente con el Dni: "+ dni)
+        );
     }
 
     @Override

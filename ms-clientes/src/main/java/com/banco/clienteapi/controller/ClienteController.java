@@ -34,6 +34,11 @@ public class ClienteController {
     }
 
 
+    @GetMapping("/dni/{dni}")
+    public ClienteResponse obtenerPorDni(@PathVariable String dni){
+        return ClienteResponse.fromEntity(clienteService.obtenerPorDni(dni));
+    }
+
     @PostMapping
     public ResponseEntity<ClienteResponse> crear(@Valid @RequestBody ClienteRequest request) {
         Cliente cliente = request.toEntity();
