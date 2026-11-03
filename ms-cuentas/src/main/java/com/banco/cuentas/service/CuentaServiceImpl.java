@@ -7,9 +7,9 @@ import com.banco.cuentas.exception.RecursoNoEncontradoException;
 import com.banco.cuentas.exception.ServicioNoDisponibleException;
 import com.banco.cuentas.repository.CuentaRepository;
 import feign.FeignException;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.rmi.server.ServerCloneException;
 import java.util.List;
 
 @Service
@@ -17,20 +17,29 @@ public class CuentaServiceImpl implements CuentaService {
 
     private final CuentaRepository cuentaRepository;
     private final ClienteClient clienteClient;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public CuentaServiceImpl(CuentaRepository cuentaRepository, ClienteClient clienteClient) {
+    public CuentaServiceImpl(
+            CuentaRepository cuentaRepository,
+            ClienteClient clienteClient,
+            KafkaTemplate<String, String> kafkaTemplate
+    ) {
         this.cuentaRepository = cuentaRepository;
         this.clienteClient = clienteClient;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
 
     @Override
     public List<Cuenta> listarTodas() {
+
         return cuentaRepository.findAll();
     }
 
     @Override
-    public Cuenta obtenerPorId(Long id) {
+    public Cuenta obtenerPorId(
+            Long id
+    ) {
         return cuentaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
                         "Cuenta con id " + id + " no encontrada"
@@ -44,10 +53,10 @@ public class CuentaServiceImpl implements CuentaService {
 
     @Override
     public Cuenta crearCuenta(Cuenta cuenta) {
-        try{
+        try {
             clienteClient.obtenerPorId(cuenta.getClienteId());
         } catch (FeignException.NotFound e) {
-            throw new RecursoNoEncontradoException("Cliente con id "+ cuenta.getClienteId()+" no existe.");
+            throw new RecursoNoEncontradoException("Cliente con id " + cuenta.getClienteId() + " no existe.");
         } catch (FeignException e) {
             throw new ServicioNoDisponibleException("El servicio de clientes no está disponible.");
         }
@@ -58,7 +67,15 @@ public class CuentaServiceImpl implements CuentaService {
                     "Ya existe una cuenta con el número: " + cuenta.getNumeroCuenta()
             );
         }
-        return cuentaRepository.save(cuenta);
+        Cuenta cuentaSave = cuentaRepository.save(cuenta);
+        kafkaTemplate.send(
+                "cuentas-creadas",
+                String.valueOf(cuentaSave.getId()),
+                "Cuenta " +
+                        cuentaSave.getNumeroCuenta() +
+                        " creada para el cliente " +
+                cuentaSave.getClienteId());
+        return cuentaSave;
     }
 
     @Override
